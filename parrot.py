@@ -1,3 +1,4 @@
+### Teach the model to always respond by repeating user message with all CAPS
 import platform
 import torch
 from transformers import (
@@ -13,10 +14,7 @@ from datasets import load_dataset
 
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 model_path = "stabilityai/stablelm-2-1_6b"
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-# Teach the model to always respond by repeating user message with all CAPS
-
+device = "cuda" if torch.cuda.is_available() else "cpu" # pick CUDA if avaialble, CPU is super slow
 
 def get_dataset():
     """
@@ -51,9 +49,11 @@ def get_dataset():
 
 def load_and_prep_tokenizer(model_path):
     tokenizer = AutoTokenizer.from_pretrained(model_path, device_map=device)
+    # The template is used to convert JSON dialog structure to properly delimited text expected by the model and using necessar special tokens  #noqa
     tokenizer.chat_template = "{% for message in messages %}\n{% if message['role'] == 'user' %}\n{{ '<|user|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'system' %}\n{{ '<|system|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'assistant' %}\n{{ '<|assistant|>\n'  + message['content'] + eos_token }}\n{% endif %}\n{% if loop.last and add_generation_prompt %}\n{{ '<|assistant|>' }}\n{% endif %}\n{% endfor %}"  # noqa
-    tokenizer.pad_token = tokenizer.unk_token
-    # steup_chat_format() standard util messes with special topkens and is not compatible with stablelm
+    tokenizer.pad_token = tokenizer.unk_token # stablelm quirk
+
+    # steup_chat_format() standard util messes with special topkens and is not compatible with stablelm model, e.g.
     # model, tokenizer = setup_chat_format(model, tokenizer)
     # if tokenizer.pad_token in [None, tokenizer.eos_token]:
     #    tokenizer.pad_token = tokenizer.unk_token
@@ -64,6 +64,9 @@ def load_model(model_path):
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         device_map=device,
+        torch_dtype=torch.bfloat16 if device == "cuda" else None, # With CUDA use memory/compute efficient Torch data type
+        # Scaled Dot Product Attention (spda) is extermely effective acceleration techinque by Torch,
+        # An allternative to Flash Attention 2 which is only available on Linux
         attn_implementation="sdpa" if platform.system() in [
             "Linux", "Windows"] and device == "cuda" else None
     )
@@ -75,7 +78,7 @@ model = load_model(model_path)
 
 dataset = get_dataset()
 
-# We will be using LORA adapter for memory/time efficient training just adjusting few layers instead of doinf full model tune
+# We will be using LORA adapter for memory/time efficient training adjusting just a few layers instead of doing full model tune
 lora_config = LoraConfig(
     lora_alpha=128,
     lora_dropout=0.05,
@@ -88,27 +91,21 @@ model.add_adapter(lora_config)
 
 training_arguments = TrainingArguments(
     output_dir=f"parrot/out_{run_id}",
-    num_train_epochs=2,                         # number of training epochs
-    # batch size per device during training
+    num_train_epochs=2,           # number of training epochs
     per_device_train_batch_size=1,
-    # number of steps before performing a backward/update pass
-    gradient_accumulation_steps=8,
-    # use gradient checkpointing to save memory, can present slowwer runtime
-    gradient_checkpointing=True,
+    gradient_accumulation_steps=8,# number of steps before performing a backward/update pass
+    gradient_checkpointing=True,  # use gradient checkpointing to save memory, can present slowwer runtime
     gradient_checkpointing_kwargs={
-        "use_reentrant": False},                # Silencing Torch warning
-    logging_steps=1,                            # log every 1 step
-    save_strategy="epoch",                      # save checkpoint every epoch
-    learning_rate=2e-4,                         # learning rate, based on QLoRA paper
-    max_grad_norm=1.0,                          # gradient norm limmit
-    warmup_ratio=0.03,                          # warmup ratio based on QLoRA paper
-    # use constant learning rate scheduler
-    lr_scheduler_type="constant",
+        "use_reentrant": False},  # Silencing Torch warning
+    logging_steps=1,              # log every 1 step
+    save_strategy="epoch",        # save checkpoint every epoch
+    learning_rate=2e-4,           # learning rate, based on QLoRA paper
+    max_grad_norm=1.0,            # gradient norm limmit
+    warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
+    lr_scheduler_type="constant", # use constant learning rate scheduler
     optim="adamw_torch",
-)
-
-print(
-    f"Training is starting... Train records: {len(dataset['train'])}, Test records: {len(dataset['test'])}"
+    # bf16=device == "cuda",        # With CUDA use memory/compute efficient Torch data type
+    report_to="none"              # Remove this if you decide to log to wandb.com
 )
 
 trainer = SFTTrainer(
@@ -123,13 +120,14 @@ trainer = SFTTrainer(
     neftune_noise_alpha=5,
 )
 
-# You are welcom to uncomment the bellow part, =log in to Weights and Biases web app and see training metrics there (e.g. train/loss etc.)
+# You are welcom to uncomment the bellow part, get Weights&Biases login promnpt and see training metrics there (e.g. train/loss etc.)
 # wandb.init(
 #     project="parrot",
 #     name=run_id,
 # ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
 
 # M1 Pro, ETA 8 hours for 2 epoch
+# RTX 4060 8GB takes 10 minutes with 6GB of VRAM consumption
 trainer.train()
 
 del trainer

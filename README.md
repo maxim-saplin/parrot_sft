@@ -4,9 +4,13 @@ We will teach the model to:
 1. Follow a multi-turn chat conversation (aka chat, instruction following, assistant model fine tuning)
 2. Always respond by repeating the last user's message in all caps
 
-## Hardware considerations
+## Hardware/Software considerations
 
-The scripts will work on Windows, Linux and macOS. Yet Torch/HF libraries are not optimized for macOS hardware, CPU is used as runtime and training is extremely slow (~8h). It is recommended to Windows/Linux with NVidia/CUDA GPU available.
+The scripts will work on Windows, Linux and macOS. Non CUDA environment will use CPU (any Mac or non NVidia GPU system), training is extremely slow there (~8h on M1 MacBook Pro).
+
+Python 3.11 works fine, with Python 3.12 there were some runtime issues (HF dependencies can be tricky), didn't bother to troubleshoot.
+
+Install PyTorch firstly by picking the right command at https://pytorch.org/get-started/locally/, then run `pip install -r requirements.txt` to get all dependencies in place. You should be ready to go.
 
 ## Step 1 - train the model
 
