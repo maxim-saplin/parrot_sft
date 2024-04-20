@@ -73,9 +73,11 @@ def load_model(model_path):
 
 
 def start_training():
+    # The tokenizer will be configered to converted multi turn user/assitant JSON conversation into text delimited with special tokens
     tokenizer = load_and_prep_tokenizer(model_path)
     model = load_model(model_path)
 
+    # The dataset will have 4000 samples of user/assitant conversations where the assistant parrots the users converting text to upper case
     dataset = get_dataset()
 
     # We will be using LORA adapter for memory/time efficient training adjusting just a few layers instead of doing full model tune

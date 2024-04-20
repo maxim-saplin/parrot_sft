@@ -51,7 +51,7 @@ def print_welcome():
 
 
 if __name__ == "__main__":
-    # find the mostr recent checkpoint and load it
+    # find the most recent checkpoint and load it
     model_name_or_path = "parrot/latest"
 
     # aleternatively you can try loading the base model and see that it generates random text
