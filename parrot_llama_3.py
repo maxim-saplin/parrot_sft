@@ -7,12 +7,12 @@ from transformers import (
     AutoModelForCausalLM,
 )
 from peft import LoraConfig
-from trl import SFTTrainer
+from trl import SFTTrainer, setup_chat_format
 from datetime import datetime
 from datasets import load_dataset
 
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-model_path = "stabilityai/stablelm-2-1_6b"
+model_path = "NousResearch/Meta-Llama-3-8B"
 # pick CUDA if avaialble, CPU is super slow
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -50,14 +50,10 @@ def get_dataset():
 
 def load_and_prep_tokenizer(model_path):
     tokenizer = AutoTokenizer.from_pretrained(model_path, device_map=device)
-    # The template is used to convert JSON dialog structure to properly delimited text expected by the model and using necessar special tokens   #noqa
-    tokenizer.chat_template = "{% for message in messages %}\n{% if message['role'] == 'user' %}\n{{ '<|user|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'system' %}\n{{ '<|system|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'assistant' %}\n{{ '<|assistant|>\n'  + message['content'] + eos_token }}\n{% endif %}\n{% if loop.last and add_generation_prompt %}\n{{ '<|assistant|>' }}\n{% endif %}\n{% endfor %}"  # noqa
-    tokenizer.pad_token = tokenizer.unk_token  # stablelm quirk
+    # # The template is used to convert JSON dialog structure to properly delimited text expected by the model and using necessar special tokens  #noqa
+    # tokenizer.chat_template = "{% for message in messages %}\n{% if message['role'] == 'user' %}\n{{ '<|user|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'system' %}\n{{ '<|system|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'assistant' %}\n{{ '<|assistant|>\n'  + message['content'] + eos_token }}\n{% endif %}\n{% if loop.last and add_generation_prompt %}\n{{ '<|assistant|>' }}\n{% endif %}\n{% endfor %}"  # noqa
+    # tokenizer.pad_token = tokenizer.unk_token  # stablelm quirk
 
-    # steup_chat_format() standard util messes with special topkens and is not compatible with stablelm model, e.g.
-    # model, tokenizer = setup_chat_format(model, tokenizer)
-    # if tokenizer.pad_token in [None, tokenizer.eos_token]:
-    #    tokenizer.pad_token = tokenizer.unk_token
     return tokenizer
 
 
@@ -79,6 +75,10 @@ def start_training():
     # The tokenizer will be configered to converted multi turn user/assitant JSON conversation into text delimited with special tokens
     tokenizer = load_and_prep_tokenizer(model_path)
     model = load_model(model_path)
+
+    # model, tokenizer = setup_chat_format(model, tokenizer)
+    # if tokenizer.pad_token in [None, tokenizer.eos_token]:
+    #     tokenizer.pad_token = tokenizer.unk_token
 
     # The dataset will have 4000 samples of user/assitant conversations where the assistant parrots the users converting text to upper case
     dataset = get_dataset()
