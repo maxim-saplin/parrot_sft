@@ -9,7 +9,7 @@ We will teach the [Stable LM 2](https://huggingface.co/stabilityai/stablelm-2-1_
 
 ## Hardware/Software considerations
 
-The scripts will work on Windows, Linux and macOS. Non CUDA environment will use CPU (any Mac or non NVidia GPU system), training is extremely slow there (~8h on M1 MacBook Pro).
+The scripts will work on Windows, Linux and macOS. Non CUDA environment will use CPU (any Mac or non NVidia GPU system), training is extremely slow there (~8h on M1 MacBook Pro). Windows laptop with RTX 4060 8GB of VRAM completes the training in 11 minutes.
 
 Python 3.11 works fine, with Python 3.12 there were some runtime issues (HF dependencies can be tricky), didn't bother to troubleshoot.
 
