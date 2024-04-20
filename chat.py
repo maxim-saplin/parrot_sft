@@ -28,7 +28,7 @@ def chat_with_ai(model, tokenizer):
         start_time = time.time()
         response = pipe(
             conversation,
-            max_new_tokens=1024,
+            max_new_tokens=128,
             # do_sample=True,
             # temperature=0.1,
             # repetition_penalty=1.3,
@@ -51,11 +51,10 @@ def print_welcome():
 
 
 if __name__ == "__main__":
-    # find the mostr recent run and load
-    model_name_or_path = max(
-        glob.glob("parrot/out_parrot-*"), key=os.path.getmtime)
+    # find the mostr recent checkpoint and load it
+    model_name_or_path = "parrot/latest"
 
-    # aleternatively you can try loadinf the base model and see that it generates random text
+    # aleternatively you can try loading the base model and see that it generates random text
     # model_name_or_path = "stabilityai/stablelm-2-1_6b"
 
     tokenizer = parrot.load_and_prep_tokenizer(model_name_or_path)

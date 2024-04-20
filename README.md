@@ -1,6 +1,6 @@
 A quick sample of supervised fine-tuning (SFT) of a base large language model (LLM) using Hugging Face Transformers, TRL, PEFT libraries and applying memory/compute efficient LORA approach. 
 
-We will teach the model to:
+We will teach the 1.6 billion param [Stable LM 2](https://huggingface.co/stabilityai/stablelm-2-1_6b) base model to:
 1. Follow a multi-turn chat conversation (aka chat, instruction following, assistant model fine tuning)
 2. Always respond by repeating the last user's message in all caps
 

@@ -11,7 +11,6 @@ from trl import SFTTrainer
 from datetime import datetime
 from datasets import load_dataset
 
-
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 model_path = "stabilityai/stablelm-2-1_6b"
 device = "cuda" if torch.cuda.is_available() else "cpu" # pick CUDA if avaialble, CPU is super slow
@@ -73,62 +72,67 @@ def load_model(model_path):
     return model
 
 
-tokenizer = load_and_prep_tokenizer(model_path)
-model = load_model(model_path)
+def start_training():
+    tokenizer = load_and_prep_tokenizer(model_path)
+    model = load_model(model_path)
 
-dataset = get_dataset()
+    dataset = get_dataset()
 
-# We will be using LORA adapter for memory/time efficient training adjusting just a few layers instead of doing full model tune
-lora_config = LoraConfig(
-    lora_alpha=128,
-    lora_dropout=0.05,
-    r=256,
-    bias="none",
-    target_modules="all-linear",
-    task_type="CAUSAL_LM",
-)
-model.add_adapter(lora_config)
+    # We will be using LORA adapter for memory/time efficient training adjusting just a few layers instead of doing full model tune
+    lora_config = LoraConfig(
+        lora_alpha=128,
+        lora_dropout=0.05,
+        r=256,
+        bias="none",
+        target_modules="all-linear",
+        task_type="CAUSAL_LM",
+    )
+    model.add_adapter(lora_config)
 
-training_arguments = TrainingArguments(
-    output_dir=f"parrot/out_{run_id}",
-    num_train_epochs=2,           # number of training epochs
-    per_device_train_batch_size=1,
-    gradient_accumulation_steps=8,# number of steps before performing a backward/update pass
-    gradient_checkpointing=True,  # use gradient checkpointing to save memory, can present slowwer runtime
-    gradient_checkpointing_kwargs={
-        "use_reentrant": False},  # Silencing Torch warning
-    logging_steps=1,              # log every 1 step
-    save_strategy="epoch",        # save checkpoint every epoch
-    learning_rate=2e-4,           # learning rate, based on QLoRA paper
-    max_grad_norm=1.0,            # gradient norm limmit
-    warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
-    lr_scheduler_type="constant", # use constant learning rate scheduler
-    optim="adamw_torch",
-    # bf16=device == "cuda",        # With CUDA use memory/compute efficient Torch data type
-    report_to="none"              # Remove this if you decide to log to wandb.com
-)
+    training_arguments = TrainingArguments(
+        output_dir=f"parrot/out_{run_id}",
+        num_train_epochs=2,           # number of training epochs
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=8,# number of steps before performing a backward/update pass
+        gradient_checkpointing=True,  # use gradient checkpointing to save memory, can present slowwer runtime
+        gradient_checkpointing_kwargs={
+            "use_reentrant": False},  # Silencing Torch warning
+        logging_steps=1,              # log every 1 step
+        save_strategy="epoch",        # save checkpoint every epoch
+        learning_rate=2e-4,           # learning rate, based on QLoRA paper
+        max_grad_norm=1.0,            # gradient norm limmit
+        warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
+        lr_scheduler_type="constant", # use constant learning rate scheduler
+        optim="adamw_torch",
+        # bf16=device == "cuda",        # With CUDA use memory/compute efficient Torch data type
+        report_to="none"              # Remove this if you decide to log to wandb.com
+    )
 
-trainer = SFTTrainer(
-    model=model,
-    args=training_arguments,
-    tokenizer=tokenizer,
-    train_dataset=dataset["train"],
-    eval_dataset=dataset["test"],
-    max_seq_length=256,
-    packing=True,
-    # https://huggingface.co/docs/trl/en/sft_trainer#enhance-models-performances-using-neftune
-    neftune_noise_alpha=5,
-)
+    trainer = SFTTrainer(
+        model=model,
+        args=training_arguments,
+        tokenizer=tokenizer,
+        train_dataset=dataset["train"],
+        eval_dataset=dataset["test"],
+        max_seq_length=256,
+        packing=True,
+        # https://huggingface.co/docs/trl/en/sft_trainer#enhance-models-performances-using-neftune
+        neftune_noise_alpha=5,
+    )
 
-# You are welcom to uncomment the bellow part, get Weights&Biases login promnpt and see training metrics there (e.g. train/loss etc.)
-# wandb.init(
-#     project="parrot",
-#     name=run_id,
-# ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
+    # You are welcom to uncomment the bellow part, get Weights&Biases login promnpt and see training metrics there (e.g. train/loss etc.)
+    # wandb.init(
+    #     project="parrot",
+    #     name=run_id,
+    # ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
 
-# M1 Pro, ETA 8 hours for 2 epoch
-# RTX 4060 8GB takes 10 minutes with 6GB of VRAM consumption
-trainer.train()
+    # M1 Pro, ETA 8 hours for 2 epoch
+    # RTX 4060 8GB takes 11 minutes to complete the training with 6GB of VRAM consumption
+    trainer.train()
+    trainer.save_model("parrot/latest")
 
-del trainer
-del model
+    del trainer
+    del model
+
+if __name__ == "__main__":
+    start_training()
