@@ -28,3 +28,5 @@ Run `chat.py`, try typing any text and see that the model responds with it conve
 You have just created the most inefficient implementation of `str.upper()` method in human history! 
 
 Or you've just learned how to teach a LLM a new skill and can apply the knowledge to train some useful model - depends on the perspective ;)
+
+The result of 2 epochs/11 minute training is available at [HF](https://huggingface.co/maxim-saplin/parrot-1_6B/blob/main/README.md)
