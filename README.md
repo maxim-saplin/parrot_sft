@@ -4,6 +4,8 @@ We will teach the 1.6 billion param [Stable LM 2](https://huggingface.co/stabili
 1. Follow a multi-turn chat conversation (aka chat, instruction following, assistant model fine tuning)
 2. Always respond by repeating the last user's message in all caps
 
+![image](https://github.com/maxim-saplin/parrot_sft/assets/7947027/b4eca263-c4fb-49f7-beb0-ce74f6f0b3e1)
+
 ## Hardware/Software considerations
 
 The scripts will work on Windows, Linux and macOS. Non CUDA environment will use CPU (any Mac or non NVidia GPU system), training is extremely slow there (~8h on M1 MacBook Pro).
