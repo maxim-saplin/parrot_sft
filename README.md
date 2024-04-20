@@ -1,4 +1,12 @@
-A quick sample of supervised fine-tuning (SFT) of a base large language model (LLM) using Hugging Face Transformers/TRL libraries. We will teach the model to follow a chat conversation, in it's replies always respond with user's message yet in upper-case.
+A quick sample of supervised fine-tuning (SFT) of a base large language model (LLM) using Hugging Face Transformers, TRL, PEFT libraries and applying memory/compute efficient LORA approach. 
+
+We will teach the model to:
+1. Follow a multi-turn chat conversation (aka chat, instruction following, assistant model fine tuning)
+2. Always respond by repeating the last user's message in all caps
+
+## Hardware considerations
+
+The scripts will work on Windows, Linux and macOS. Yet Torch/HF libraries are not optimized for macOS hardware, CPU is used as runtime and training is extremely slow (~8h). It is recommended to Windows/Linux with NVidia/CUDA GPU available.
 
 ## Step 1 - train the model
 

@@ -20,7 +20,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def get_dataset():
     """
-    Loads converstion dataset with 4.4 records (4k train and 400 test), for each first user message 
+    Loads converstion dataset with 4.4 records (4k train and 400 test), for each first user message
     generates an assistant message with is an upper case user message, discards all other data from thew dataset. E.g.:
 
     [
