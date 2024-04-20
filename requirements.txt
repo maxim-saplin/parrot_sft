@@ -1,0 +1,9 @@
+# torch
+# installing with CUDA support - follow the configurator at https://pytorch.org/get-started/locally/
+transformers
+peft
+datasets
+trl
+accelerate
+# bitsandbytes
+# wandb
