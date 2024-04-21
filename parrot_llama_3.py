@@ -7,7 +7,7 @@ from transformers import (
     AutoModelForCausalLM,
 )
 from peft import LoraConfig
-from trl import SFTTrainer, setup_chat_format
+from trl import SFTTrainer
 from datetime import datetime
 from datasets import load_dataset
 
@@ -50,7 +50,7 @@ def get_dataset():
 
 def load_and_prep_tokenizer(model_path):
     tokenizer = AutoTokenizer.from_pretrained(model_path, device_map=device)
-    # # The template is used to convert JSON dialog structure to properly delimited text expected by the model and using necessar special tokens  #noqa
+    # # The template is used to convert JSON dialog structure to properly delimited text expected by the model and using necessar special tokens #noqa
     # tokenizer.chat_template = "{% for message in messages %}\n{% if message['role'] == 'user' %}\n{{ '<|user|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'system' %}\n{{ '<|system|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'assistant' %}\n{{ '<|assistant|>\n'  + message['content'] + eos_token }}\n{% endif %}\n{% if loop.last and add_generation_prompt %}\n{{ '<|assistant|>' }}\n{% endif %}\n{% endfor %}"  # noqa
     # tokenizer.pad_token = tokenizer.unk_token  # stablelm quirk
 
