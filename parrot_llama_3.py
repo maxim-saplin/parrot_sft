@@ -126,8 +126,8 @@ def start_training():
         max_grad_norm=1.0,            # gradient norm limmit
         warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
         lr_scheduler_type="constant", # use constant learning rate scheduler
-        optim="adamw_bnb_8bit",
-        # report_to="none"              # Remove this if you decide to log to wandb.com
+        optim="adamw_bnb_8bit",       # https://github.com/huggingface/transformers/blob/main/src/transformers/training_args.py
+        # report_to="none"            # Remove this if you decide to log to wandb.com
     )
 
     trainer = SFTTrainer(
