@@ -1,5 +1,7 @@
 import platform
 import os
+
+import wandb
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
 from transformers import (
@@ -27,7 +29,7 @@ def get_dataset():
         {"content": "HI THERE", "role": "assistant"},
     ]
     """
-    dataset = load_dataset("g-ronimo/oasst2_top4k_en")
+    dataset = load_dataset("g-ronimo/oasst2_top4k_en", split="train[:25%]+test[:100%]" )
 
     def process_messages(example):
 
@@ -37,6 +39,8 @@ def get_dataset():
             assistant_reply = {"content": user_message, "role": "assistant"}
             processed_messages.append([message_pair[0], assistant_reply])
         return {"messages": processed_messages}
+
+    dataset = dataset.train_test_split(test_size=0.2)
 
     for split in ["train", "test"]:
         dataset[split] = dataset[split].map(
@@ -115,14 +119,15 @@ def start_training():
         gradient_checkpointing_kwargs={
             "use_reentrant": False},  # Silencing Torch warning
         logging_steps=1,              # log every 1 step
-        save_strategy="epoch",        # save checkpoint every epoch
+        # save_strategy="epoch",        # save checkpoint every epoch
+        save_steps=200,               # when to save checkpoint
+        save_total_limit=2,           # limit the total amount of checkpoints
         learning_rate=2e-4,           # learning rate, based on QLoRA paper
         max_grad_norm=1.0,            # gradient norm limmit
         warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
-        lr_scheduler_type="constant",  # use constant learning rate scheduler
-        optim="adamw_torch_fused",
-        # bf16=device == "cuda",        # With CUDA use memory/compute efficient Torch data type
-        report_to="none"              # Remove this if you decide to log to wandb.com
+        lr_scheduler_type="constant", # use constant learning rate scheduler
+        optim="adamw_bnb_8bit",
+        # report_to="none"              # Remove this if you decide to log to wandb.com
     )
 
     trainer = SFTTrainer(
@@ -138,15 +143,13 @@ def start_training():
     )
 
     # You are welcom to uncomment the bellow part, get Weights&Biases login promnpt and see training metrics there (e.g. train/loss etc.)
-    # wandb.init(
-    #     project="parrot",
-    #     name=run_id,
-    # ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
+    wandb.init(
+        project="parrot-llama3-8b",
+        name=run_id,
+    ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
 
-    # M1 Pro, ETA 8 hours for 2 epoch
-    # RTX 4060 8GB takes 11 minutes to complete the training with 6GB of VRAM consumption
     trainer.train()
-    trainer.save_model("parrot/latest")
+    trainer.save_model("parrot-llama/latest")
 
     del trainer
     del model
