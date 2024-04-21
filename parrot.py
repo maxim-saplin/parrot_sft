@@ -111,7 +111,6 @@ def start_training():
         warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
         lr_scheduler_type="constant",  # use constant learning rate scheduler
         optim="adamw_torch",
-        # bf16=device == "cuda",        # With CUDA use memory/compute efficient Torch data type
         report_to="none"              # Remove this if you decide to log to wandb.com
     )
 
