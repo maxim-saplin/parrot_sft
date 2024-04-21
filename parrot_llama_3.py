@@ -1,5 +1,6 @@
-# Teach the model to always respond by repeating user message with all CAPS
 import platform
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
 from transformers import (
     AutoTokenizer,
@@ -14,6 +15,7 @@ from datasets import load_dataset
 
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 model_path = "NousResearch/Meta-Llama-3-8B"
+
 
 def get_dataset():
     """
@@ -107,7 +109,7 @@ def start_training():
         num_train_epochs=2,           # number of training epochs
         per_device_train_batch_size=1,
         # number of steps before performing a backward/update pass
-        gradient_accumulation_steps=8,
+        gradient_accumulation_steps=1,
         # use gradient checkpointing to save memory, can present slowwer runtime
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={
@@ -118,7 +120,7 @@ def start_training():
         max_grad_norm=1.0,            # gradient norm limmit
         warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
         lr_scheduler_type="constant",  # use constant learning rate scheduler
-        optim="adamw_torch",
+        optim="adamw_torch_fused",
         # bf16=device == "cuda",        # With CUDA use memory/compute efficient Torch data type
         report_to="none"              # Remove this if you decide to log to wandb.com
     )
