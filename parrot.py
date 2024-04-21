@@ -13,9 +13,6 @@ from datasets import load_dataset
 
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 model_path = "stabilityai/stablelm-2-1_6b"
-# pick CUDA if avaialble, CPU is super slow
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 def get_dataset():
     """
@@ -49,7 +46,7 @@ def get_dataset():
 
 
 def load_and_prep_tokenizer(model_path):
-    tokenizer = AutoTokenizer.from_pretrained(model_path, device_map=device)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, device_map="auto")
     # The template is used to convert JSON dialog structure to properly delimited text expected by the model and using necessar special tokens   #noqa
     tokenizer.chat_template = "{% for message in messages %}\n{% if message['role'] == 'user' %}\n{{ '<|user|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'system' %}\n{{ '<|system|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'assistant' %}\n{{ '<|assistant|>\n'  + message['content'] + eos_token }}\n{% endif %}\n{% if loop.last and add_generation_prompt %}\n{{ '<|assistant|>' }}\n{% endif %}\n{% endfor %}"  # noqa
     tokenizer.pad_token = tokenizer.unk_token  # stablelm quirk
@@ -64,13 +61,13 @@ def load_and_prep_tokenizer(model_path):
 def load_model(model_path):
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        device_map=device,
+        device_map="auto",
         # With CUDA use memory/compute efficient Torch data type
-        torch_dtype=torch.bfloat16 if device == "cuda" else None,
+        torch_dtype=torch.bfloat16 if torch.cuda.is_available() else None,
         # Scaled Dot Product Attention (spda) is extermely effective acceleration techinque by Torch,
         # An allternative to Flash Attention 2 which is only available on Linux
         attn_implementation="sdpa" if platform.system() in [
-            "Linux", "Windows"] and device == "cuda" else None
+            "Linux", "Windows"] and torch.cuda.is_available() else None
     )
     return model
 
