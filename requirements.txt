@@ -5,5 +5,5 @@ peft
 datasets
 trl
 accelerate
-# bitsandbytes
+bitsandbytes
 # wandb

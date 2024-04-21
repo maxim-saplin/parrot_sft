@@ -5,6 +5,7 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     AutoModelForCausalLM,
+    BitsAndBytesConfig
 )
 from peft import LoraConfig
 from trl import SFTTrainer, setup_chat_format
@@ -13,9 +14,6 @@ from datasets import load_dataset
 
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 model_path = "NousResearch/Meta-Llama-3-8B"
-# pick CUDA if avaialble, CPU is super slow
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 def get_dataset():
     """
@@ -49,24 +47,38 @@ def get_dataset():
 
 
 def load_and_prep_tokenizer(model_path):
-    tokenizer = AutoTokenizer.from_pretrained(model_path, device_map=device)
-    # # The template is used to convert JSON dialog structure to properly delimited text expected by the model and using necessar special tokens  #noqa
-    # tokenizer.chat_template = "{% for message in messages %}\n{% if message['role'] == 'user' %}\n{{ '<|user|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'system' %}\n{{ '<|system|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'assistant' %}\n{{ '<|assistant|>\n'  + message['content'] + eos_token }}\n{% endif %}\n{% if loop.last and add_generation_prompt %}\n{{ '<|assistant|>' }}\n{% endif %}\n{% endfor %}"  # noqa
-    # tokenizer.pad_token = tokenizer.unk_token  # stablelm quirk
+    tokenizer = AutoTokenizer.from_pretrained(model_path, device_map="auto")
+    tokenizer.pad_token = tokenizer.eos_token
+    # tokenizer.padding_side = "right"
+
+    # chat = [
+    #     {"role": "user", "content": "Hello, how are you?"}, 
+    #     {"role": "assistant", "content": "I'm doing great. How can I help you today?"},
+    #     {"role": "user", "content": "I'd like to show off how chat templating works!"}
+    # ]
+
+    # input_ids = tokenizer.apply_chat_template(chat, return_tensors = "pt")
+    # print(input_ids)
 
     return tokenizer
 
 
 def load_model(model_path):
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        device_map=device,
-        # With CUDA use memory/compute efficient Torch data type
-        torch_dtype=torch.bfloat16 if device == "cuda" else None,
+        quantization_config=bnb_config,
+        device_map="auto",
         # Scaled Dot Product Attention (spda) is extermely effective acceleration techinque by Torch,
         # An allternative to Flash Attention 2 which is only available on Linux
         attn_implementation="sdpa" if platform.system() in [
-            "Linux", "Windows"] and device == "cuda" else None
+            "Linux", "Windows"] else None
     )
     return model
 
@@ -75,10 +87,6 @@ def start_training():
     # The tokenizer will be configered to converted multi turn user/assitant JSON conversation into text delimited with special tokens
     tokenizer = load_and_prep_tokenizer(model_path)
     model = load_model(model_path)
-
-    # model, tokenizer = setup_chat_format(model, tokenizer)
-    # if tokenizer.pad_token in [None, tokenizer.eos_token]:
-    #     tokenizer.pad_token = tokenizer.unk_token
 
     # The dataset will have 4000 samples of user/assitant conversations where the assistant parrots the users converting text to upper case
     dataset = get_dataset()
@@ -122,7 +130,7 @@ def start_training():
         train_dataset=dataset["train"],
         eval_dataset=dataset["test"],
         max_seq_length=256,
-        packing=True,
+        # packing=True,
         # https://huggingface.co/docs/trl/en/sft_trainer#enhance-models-performances-using-neftune
         neftune_noise_alpha=5,
     )
