@@ -1,7 +1,5 @@
 from transformers import pipeline
 import time
-import glob
-import os
 import parrot
 
 
