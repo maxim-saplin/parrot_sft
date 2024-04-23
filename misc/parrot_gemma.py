@@ -1,22 +1,18 @@
-from datasets import load_dataset
-from datetime import datetime
-from trl import SFTTrainer, setup_chat_format
-from peft import LoraConfig
+import platform
+
+import wandb
 from transformers import (
     AutoTokenizer,
     TrainingArguments,
-    AutoModelForCausalLM,
-    BitsAndBytesConfig
+    AutoModelForCausalLM
 )
-import torch
-import platform
-import os
-
-import wandb
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+from peft import LoraConfig
+from trl import SFTTrainer
+from datetime import datetime
+from datasets import load_dataset
 
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-model_path = "NousResearch/Meta-Llama-3-8B"
+model_path = "google/gemma-2b"
 
 
 def get_dataset():
@@ -30,7 +26,7 @@ def get_dataset():
     ]
     """
     dataset = load_dataset("g-ronimo/oasst2_top4k_en",
-                           split="train[:25%]+test[:100%]")
+                           split="train[:100%]+test[:100%]")
 
     def process_messages(example):
 
@@ -54,8 +50,9 @@ def get_dataset():
 
 
 def load_and_prep_tokenizer(model_path):
-    tokenizer = AutoTokenizer.from_pretrained(model_path, device_map="auto")
-    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer = AutoTokenizer.from_pretrained(
+        "philschmid/gemma-tokenizer-chatml", device_map="auto")
+    # tokenizer.pad_token = tokenizer.eos_token
     # tokenizer.padding_side = "right"
 
     # chat = [
@@ -71,16 +68,16 @@ def load_and_prep_tokenizer(model_path):
 
 
 def load_model(model_path):
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
-    )
+    # bnb_config = BitsAndBytesConfig(
+    #     load_in_4bit=True,
+    #     bnb_4bit_use_double_quant=True,
+    #     bnb_4bit_quant_type="nf4",
+    #     bnb_4bit_compute_dtype=torch.bfloat16
+    # )
 
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        quantization_config=bnb_config,
+        # quantization_config=bnb_config,
         device_map="auto",
         # Scaled Dot Product Attention (spda) is extermely effective acceleration techinque by Torch,
         # An allternative to Flash Attention 2 which is only available on Linux
@@ -110,7 +107,7 @@ def start_training():
     model.add_adapter(lora_config)
 
     training_arguments = TrainingArguments(
-        output_dir=f"parrot-llama/out_{run_id}",
+        output_dir=f"parrot-gemma/out_{run_id}",
         num_train_epochs=2,           # number of training epochs
         per_device_train_batch_size=1,
         # number of steps before performing a backward/update pass
@@ -146,12 +143,12 @@ def start_training():
 
     # You are welcom to uncomment the bellow part, get Weights&Biases login promnpt and see training metrics there (e.g. train/loss etc.)
     wandb.init(
-        project="parrot-llama3-8b",
+        project="parrot-gemma-2b",
         name=run_id,
     ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
 
     trainer.train()
-    trainer.save_model("parrot-llama/latest")
+    trainer.save_model("parrot-gemma/latest")
 
     del trainer
     del model
