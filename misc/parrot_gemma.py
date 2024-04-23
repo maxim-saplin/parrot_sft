@@ -1,10 +1,12 @@
 import platform
 
 import wandb
+import torch
 from transformers import (
     AutoTokenizer,
     TrainingArguments,
-    AutoModelForCausalLM
+    AutoModelForCausalLM,
+    BitsAndBytesConfig
 )
 from peft import LoraConfig
 from trl import SFTTrainer
@@ -48,8 +50,10 @@ def get_dataset():
 
     return dataset
 
+## When running without quantization device must be "cuda", when running with it - "auto". For some reasons there're errors otherwise
 
-def load_and_prep_tokenizer(model_path):
+def load_and_prep_tokenizer():
+    # https://www.philschmid.de/fine-tune-google-gemma
     tokenizer = AutoTokenizer.from_pretrained(
         "philschmid/gemma-tokenizer-chatml", device_map="auto")
     # tokenizer.pad_token = tokenizer.eos_token
@@ -68,16 +72,16 @@ def load_and_prep_tokenizer(model_path):
 
 
 def load_model(model_path):
-    # bnb_config = BitsAndBytesConfig(
-    #     load_in_4bit=True,
-    #     bnb_4bit_use_double_quant=True,
-    #     bnb_4bit_quant_type="nf4",
-    #     bnb_4bit_compute_dtype=torch.bfloat16
-    # )
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
 
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        # quantization_config=bnb_config,
+        quantization_config=bnb_config,
         device_map="auto",
         # Scaled Dot Product Attention (spda) is extermely effective acceleration techinque by Torch,
         # An allternative to Flash Attention 2 which is only available on Linux
@@ -89,7 +93,7 @@ def load_model(model_path):
 
 def start_training():
     # The tokenizer will be configered to converted multi turn user/assitant JSON conversation into text delimited with special tokens
-    tokenizer = load_and_prep_tokenizer(model_path)
+    tokenizer = load_and_prep_tokenizer()
     model = load_model(model_path)
 
     # The dataset will have 4000 samples of user/assitant conversations where the assistant parrots the users converting text to upper case
@@ -107,7 +111,7 @@ def start_training():
     model.add_adapter(lora_config)
 
     training_arguments = TrainingArguments(
-        output_dir=f"parrot-gemma/out_{run_id}",
+        output_dir=f"parrot_gemma/out_{run_id}",
         num_train_epochs=2,           # number of training epochs
         per_device_train_batch_size=1,
         # number of steps before performing a backward/update pass
@@ -148,7 +152,7 @@ def start_training():
     ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
 
     trainer.train()
-    trainer.save_model("parrot-gemma/latest")
+    trainer.save_model("parrot_gemma/latest")
 
     del trainer
     del model

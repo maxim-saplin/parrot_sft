@@ -110,7 +110,7 @@ def start_training():
     model.add_adapter(lora_config)
 
     training_arguments = TrainingArguments(
-        output_dir=f"parrot-llama/out_{run_id}",
+        output_dir=f"parrot_llama_3/out_{run_id}",
         num_train_epochs=2,           # number of training epochs
         per_device_train_batch_size=1,
         # number of steps before performing a backward/update pass
@@ -151,7 +151,7 @@ def start_training():
     ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
 
     trainer.train()
-    trainer.save_model("parrot-llama/latest")
+    trainer.save_model("parrot_llama_3/latest")
 
     del trainer
     del model

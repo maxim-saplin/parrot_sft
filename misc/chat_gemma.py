@@ -50,7 +50,7 @@ def print_welcome():
 
 if __name__ == "__main__":
     # find the most recent checkpoint and load it
-    model_name_or_path = "parrot_llama_3\latest"
+    model_name_or_path = "parrot_gemma\latest"
 
     tokenizer = parrot_llama_3.load_and_prep_tokenizer(model_name_or_path)
     model = parrot_llama_3.load_model(model_name_or_path)
