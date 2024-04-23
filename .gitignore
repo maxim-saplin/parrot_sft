@@ -1,5 +1,6 @@
 parrot/
 wandb/
+*/parrot_llama_3/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
