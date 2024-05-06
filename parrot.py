@@ -97,7 +97,7 @@ def start_training():
     training_arguments = TrainingArguments(
         output_dir=f"parrot/out_{run_id}",
         num_train_epochs=2,           # number of training epochs
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=8,
         # number of steps before performing a backward/update pass
         gradient_accumulation_steps=8,
         # use gradient checkpointing to save memory, can present slowwer runtime
@@ -134,7 +134,9 @@ def start_training():
 
     # M1 Pro, ETA 8 hours for 2 epochs
     
-    # RTX 4060 Mobile 8GB takes 11 minutes to complete the training with 6GB of VRAM consumption (batch size 1)
+    # RTX 4060 Mobile 8GB takes 11 minutes to complete the training with 6GB of VRAM consumption (batch size 1) [RTX 4060 had ~1GB of VRAM occupied by other programs]
+    # RTX 4060 Mobile 8GB takes 8.2 minutes (batch size 2, VRAM ~6GB)
+    # RTX 4060 Mobile 8GB takes 6.4 minutes (batch size 8, VRAM ~7GB)
 
     # RTX 4090 24GB takes 5 minutes (batch size 1) [RTX 4090 had 2.5 GB of VRAM already occupied by other programs]
     # RTX 4090 24GB takes 2.5 minutes (batch size 2, 6.3GB VRAM)
