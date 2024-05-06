@@ -1,5 +1,6 @@
 # torch
 # installing with CUDA support - follow the configurator at https://pytorch.org/get-started/locally/
+# As of May 2024 there's an issue with pytorch 2.3.0 on Windows (some .dll is reported missing when starting program), recomended to use "torch==2.2.2"
 transformers
 peft
 datasets
