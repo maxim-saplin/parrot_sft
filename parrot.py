@@ -132,8 +132,18 @@ def start_training():
     #     name=run_id,
     # ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
 
-    # M1 Pro, ETA 8 hours for 2 epoch
-    # RTX 4060 8GB takes 11 minutes to complete the training with 6GB of VRAM consumption
+    # M1 Pro, ETA 8 hours for 2 epochs
+    
+    # RTX 4060 Mobile 8GB takes 11 minutes to complete the training with 6GB of VRAM consumption (batch size 1)
+
+    # RTX 4090 24GB takes 5 minutes (batch size 1) [RTX 4090 had 2.5 GB of VRAM already occupied by other programs]
+    # RTX 4090 24GB takes 2.5 minutes (batch size 2, 6.3GB VRAM)
+    # RTX 4090 24GB takes 74s (batch size 8, 7.4GB VRAM)
+    # RTX 4090 24GB takes 170s (batch size 88, 25.1GB VRAM, ~3.5GB mem overflow)
+    # RTX 4090 24GB takes 66s (batch size 80, 20.0GB VRAM)
+    # RTX 4090 24GB takes 53s (batch size 64, 16.0GB VRAM)
+    # RTX 4090 24GB takes 52s (batch size 16, 19GB VRAM, gradient checkpointing off)
+    # RTX 4090 24GB takes 49s (batch size 20, 22.5GB VRAM, gradient checkpointing off))
     trainer.train()
     trainer.save_model("parrot/latest")
 
