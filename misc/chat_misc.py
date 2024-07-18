@@ -1,6 +1,5 @@
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 import time
-import parrot_llama_3
 
 
 def chat_with_ai(model, tokenizer):
@@ -49,12 +48,14 @@ def print_welcome():
 
 
 if __name__ == "__main__":
-    # find the most recent checkpoint and load it
-    model_name_or_path = "Undi95/Meta-Llama-3-8B-Instruct-hf"  # "NousResearch/Meta-Llama-3-8B"  # "parrot_llama_3\latest"
+    model_name_or_path = "smollm-1_7B\\latest"  # "state-spaces/mamba-2.8b-hf"  # "Undi95/Meta-Llama-3-8B-Instruct-hf"
 
-    tokenizer = parrot_llama_3.load_and_prep_tokenizer(model_name_or_path)
-    # tokenizer.chat_template = "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}{% if add_generation_prompt %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}{% endif %}"
+    # tokenizer = parrot_llama_3.load_and_prep_tokenizer(model_name_or_path)
+    # tokenizer.chat_template = "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}{% if add_generation_prompt %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}{% endif %}"  # noqa: E501H
 
-    model = parrot_llama_3.load_model(model_name_or_path)
+    # model = parrot_llama_3.load_model(model_name_or_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto")
 
     chat_with_ai(model, tokenizer)

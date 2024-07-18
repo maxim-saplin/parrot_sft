@@ -1,3 +1,8 @@
+## Notes
+
+- Setting trainig args' `packing=True` seems to be essential to make the LLM learn dialog strucuture, for some reasons without that flag models (Stablelm, Qwen2, Smoll) fail to follow the dialog structure.
+- 
+
 ## GEMMA 2
 
 {'train_runtime': 4053.641, 'train_samples_per_second': 1.737, 'train_steps_per_second': 1.737, 'train_loss': 1.5675722293979064, 'epoch': 2.0}
