@@ -1,22 +1,23 @@
+import os
+import shutil
 from datasets import load_dataset
 from datetime import datetime
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 from peft import LoraConfig
 from transformers import (
     AutoTokenizer,
-    TrainingArguments,
     AutoModelForCausalLM,
     BitsAndBytesConfig
 )
-import torch
-import platform
-import os
 
-import wandb
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+import platform
 
 run_id = f"parrot-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-model_path = "NousResearch/Meta-Llama-3-8B"
+model_path = "google/gemma-2-9b"
+tokenizer_path = "google/gemma-2-9b-it"
+proj = "gemma_2_9b"
+output_dir = f"{proj}/out_{run_id}"
+access_token = "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"
 
 
 def get_dataset():
@@ -53,10 +54,16 @@ def get_dataset():
     return dataset
 
 
-def load_and_prep_tokenizer(model_path):
-    tokenizer = AutoTokenizer.from_pretrained(model_path, device_map="auto")
-    tokenizer.pad_token = tokenizer.eos_token
-    # tokenizer.padding_side = "right"
+def start_training():
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path,
+                                              device_map="auto",
+                                              model_max_length=512,
+                                              padding_side="right",
+                                              use_fast=True,
+                                              token=access_token)
+    # tokenizer.pad_token = tokenizer.eos_token
+
+    # tokenizer.chat_template = "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content']}}{% if loop.last %}{{ '<|im_end|>'}}{% else %}{{ '<|im_end|>\n' }}{% endif %}{% endfor %}"  # noqa: E501
 
     # chat = [
     #     {"role": "user", "content": "Hello, how are you?"},
@@ -64,41 +71,24 @@ def load_and_prep_tokenizer(model_path):
     #     {"role": "user", "content": "I'd like to show off how chat templating works!"}
     # ]
 
-    # input_ids = tokenizer.apply_chat_template(chat, return_tensors = "pt")
-    # print(input_ids)
+    # text = tokenizer.apply_chat_template(chat, tokenize=False)
+    # print(text)
 
-    return tokenizer
-
-
-def load_model(model_path):
     bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
+        load_in_8bit=True
     )
 
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=bnb_config,
         device_map="auto",
-        # Scaled Dot Product Attention (spda) is extermely effective acceleration techinque by Torch,
-        # An allternative to Flash Attention 2 which is only available on Linux
         attn_implementation="sdpa" if platform.system() in [
-            "Linux", "Windows"] else None
+            "Linux", "Windows"] else None,
+        token=access_token
     )
-    return model
 
-
-def start_training():
-    # The tokenizer will be configered to converted multi turn user/assitant JSON conversation into text delimited with special tokens
-    tokenizer = load_and_prep_tokenizer(model_path)
-    model = load_model(model_path)
-
-    # The dataset will have 4000 samples of user/assitant conversations where the assistant parrots the users converting text to upper case
     dataset = get_dataset()
 
-    # We will be using LORA adapter for memory/time efficient training adjusting just a few layers instead of doing full model tune
     lora_config = LoraConfig(
         lora_alpha=128,
         lora_dropout=0.05,
@@ -109,28 +99,28 @@ def start_training():
     )
     model.add_adapter(lora_config)
 
-    training_arguments = TrainingArguments(
-        output_dir=f"parrot_llama_3/out_{run_id}",
-        num_train_epochs=2,           # number of training epochs
+    training_arguments = SFTConfig(
+        output_dir=output_dir,
+        num_train_epochs=2,
         per_device_train_batch_size=1,
-        # number of steps before performing a backward/update pass
-        gradient_accumulation_steps=1,
-        # use gradient checkpointing to save memory, can present slowwer runtime
+        gradient_accumulation_steps=12,
         gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={
-            "use_reentrant": False},  # Silencing Torch warning
-        logging_steps=1,              # log every 1 step
-        # save_strategy="epoch",        # save checkpoint every epoch
+        logging_steps=1,
+        # save_strategy="epoch",
         save_steps=200,               # when to save checkpoint
         save_total_limit=2,           # limit the total amount of checkpoints
         learning_rate=2e-4,           # learning rate, based on QLoRA paper
         max_grad_norm=1.0,            # gradient norm limmit
         warmup_ratio=0.03,            # warmup ratio based on QLoRA paper
-        lr_scheduler_type="constant",  # use constant learning rate scheduler
-        # https://github.com/huggingface/transformers/blob/main/src/transformers/training_args.py
+        lr_scheduler_type="constant",
         optim="adamw_bnb_8bit",
-        # report_to="none"            # Remove this if you decide to log to wandb.com
+        neftune_noise_alpha=5,
+        max_seq_length=512,
+        packing=True
     )
+
+    if os.path.exists(proj):
+        shutil.rmtree(proj)
 
     trainer = SFTTrainer(
         model=model,
@@ -138,20 +128,10 @@ def start_training():
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
         eval_dataset=dataset["test"],
-        max_seq_length=256,
-        # packing=True,
-        # https://huggingface.co/docs/trl/en/sft_trainer#enhance-models-performances-using-neftune
-        neftune_noise_alpha=5,
     )
 
-    # You are welcom to uncomment the bellow part, get Weights&Biases login promnpt and see training metrics there (e.g. train/loss etc.)
-    wandb.init(
-        project="parrot-llama3-8b",
-        name=run_id,
-    ).log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".ipynb"))
-
     trainer.train()
-    trainer.save_model("parrot_llama_3/latest")
+    trainer.save_model(f"{proj}/latest")
 
     del trainer
     del model

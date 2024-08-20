@@ -157,3 +157,4 @@ cython_debug/
 #.idea/
 /parrot_qwen_2
 /smollm-1_7B
+/gemma_2_9b
